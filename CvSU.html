@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Organization View - CvSU Blockchain</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<script src="blockchain.js"></script>
+<style>
+/* --- UNIVERSAL STYLES --- */
+:root{ --panel-width: 900px; --panel-bg: rgba(20,24,31,0.85); --text-light: #ffffff; }
+*{box-sizing:border-box; margin:0; padding:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial;}
+html,body{height:100%;}
+body{ background-image:url('Kabsu2.png'); background-size:cover; background-position:center; background-attachment: fixed; }
+.bg{ position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:-1; }
+.page { min-height: 100%; display:flex; flex-direction:column; align-items:center; padding:20px; }
+
+/* NAV BAR */
+.nav-bar { width: 100%; max-width: var(--panel-width); display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+.back-btn { background: #000; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; border: 1px solid #333; transition: 0.2s; white-space: nowrap; }
+.back-btn:hover { background: #333; }
+.search { position: relative; width: 100%; max-width: 300px; }
+select { width: 100%; padding: 10px 15px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.5); color: white; font-weight: bold; cursor: pointer; }
+select option { color: black; }
+
+/* MAIN PANEL */
+.panel { width: 100%; max-width: var(--panel-width); background: var(--panel-bg); border-radius: 12px; padding: 40px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 40px rgba(0,0,0,0.5); text-align: center; color: white; }
+h2.org-header { margin: 0 0 40px; font-size: 26px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px; }
+
+/* BOX GRID */
+.box-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 40px; }
+.box { background: #f8f9fa; color: #333; padding: 25px 15px; border-radius: 10px; min-height: 220px; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.2); transition: transform 0.2s; }
+.box:hover { transform: translateY(-5px); }
+.box h3 { font-size: 14px; font-weight: 800; margin-bottom: 15px; text-transform: uppercase; color: #000; }
+.doc-link { display: inline-block; padding: 10px 18px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 13px; margin-top: 5px; }
+.doc-link:hover { background: #1d4ed8; }
+
+.logo { width: 90px; margin-bottom: 15px; }
+.footer-text { font-size: 12px; font-weight: 600; text-transform: uppercase; color: #bbb; letter-spacing: 0.5px; }
+
+/* MOBILE */
+@media (max-width: 768px) { .nav-bar { flex-direction: column; align-items: stretch; } .back-btn { text-align: center; } .search { max-width: 100%; } .panel { padding: 20px; } h2.org-header { font-size: 20px; margin-bottom: 25px; } .box { min-height: 180px; } }
+</style>
+</head>
+
+<body>
+    <div class="bg"></div>
+
+    <div class="page">
+        <div class="nav-bar">
+            <a href="Login.html" class="back-btn">← Back</a>
+            
+            <div class="search">
+                <select id="dynamicOrgSelect" onchange="if(this.value) window.location.href=this.value">
+                    <option value="">Loading Organizations...</option>
+                </select>
+            </div>
+        </div>
+
+        <main class="panel">
+            <h2 id="org-header" class="org-header">LOADING...</h2>
+            
+            <div class="box-container">
+                <div class="box" id="ack-box">
+                    <h3>ACKNOWLEDGEMENT</h3>
+                    <p>Loading...</p>
+                </div>
+                <div class="box" id="exec-box">
+                    <h3>EXECUTIVES</h3>
+                    <p>Loading...</p>
+                </div>
+                <div class="box" id="flow-box">
+                    <h3>ORG FLOW</h3>
+                    <p>Loading...</p>
+                </div>
+                <div class="box" id="financial-box">
+                    <h3>FINANCIALS</h3>
+                    <p>Loading...</p>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px; text-align: left;">
+                <h4 style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px; margin-bottom: 15px; color:#f6851b;">Recent Updates</h4>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: white;">
+                        <thead>
+                            <tr style="background: rgba(255,255,255,0.1);">
+                                <th style="padding: 10px;">Date</th>
+                                <th style="padding: 10px;">Document</th>
+                                <th style="padding: 10px;">Transaction</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orgTxBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <br><br>
+            
+            <img src="KabsuLogo.png" class="logo" alt="CvSU Logo">
+            <div class="footer-text">Cavite State University - Imus Campus <br> Organizational Blockchain</div>
+        </main>
+    </div>
+    
+    <script>
+        window.onload = async function() {
+            populateOrgDropdown();
+
+            const path = window.location.pathname;
+            const pageTicker = path.split("/").pop().replace(".html", ""); 
+
+            console.log("Current Page Ticker:", pageTicker);
+
+            loadOrgData(pageTicker); 
+            loadOrganizationLogs(pageTicker);
+
+            if (window.ethereum) {
+                try {
+                    const provider = new ethers.providers.Web3Provider(window.ethereum);
+                    const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+                    const details = await contract.getOrgDetails(pageTicker);
+                    
+                    if(details && details[1]) {
+                        document.getElementById("org-header").innerText = `${pageTicker} (${details[1]})`;
+                        document.title = `${pageTicker} - CvSU Blockchain`;
+                    } else {
+                        document.getElementById("org-header").innerText = `${pageTicker} (Not Registered)`;
+                    }
+                } catch(e) {
+                    console.error("Header load error:", e);
+                    document.getElementById("org-header").innerText = pageTicker;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

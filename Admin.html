@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dashboard — CvSU Blockchain</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<script src="blockchain.js"></script> 
+<style>
+:root{ --panel-width: 950px; --panel-bg: rgba(20,24,31,0.95); --accent: #f6851b; --text-light: #ffffff; }
+*{box-sizing:border-box; margin:0; padding:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial;}
+body{background-image:url('Kabsu2.png'); background-size:cover; background-position:center; background-attachment: fixed; color: white;}
+.bg{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:-1;}
+.page{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:20px;}
+h1{margin:0 0 20px 0; font-size:28px; font-weight:800; color: white; text-align: center;}
+.dashboard-panel{ width: 100%; max-width: var(--panel-width); background: var(--panel-bg); border-radius: 12px; padding: 30px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 40px rgba(0,0,0,0.5); margin-bottom: 30px; }
+.welcome-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+.upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.upload-box { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; }
+.upload-box label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; color: #f6851b; }
+.input-row { display: flex; gap: 8px; }
+input[type="text"] { flex: 1; padding: 10px; border-radius: 4px; border: none; background: rgba(255,255,255,0.9); color: #333; min-width: 0; }
+button.action-btn { padding: 8px 12px; background: #2563eb; color: white; border: none; border-radius: 4px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+button.remove-btn-icon { padding: 8px 12px; background: #dc2626; color: white; border: none; border-radius: 4px; font-weight: 700; cursor: pointer; }
+.table-wrapper { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; min-width: 500px; font-size: 14px;}
+.data-table td, .data-table th { padding: 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); vertical-align: middle; }
+.logout-btn { background: #dc2626; padding: 8px 16px; border-radius: 6px; border:none; color: white; font-weight: bold; cursor: pointer; }
+.btn-add { background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; }
+.modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
+.modal-content { background-color: #1e1e1e; color: white; margin: 10% auto; padding: 25px; border: 1px solid #444; width: 90%; max-width: 400px; border-radius: 10px; }
+@media (max-width: 768px) { .upload-grid { grid-template-columns: 1fr; } .input-row { flex-direction: column; } button.action-btn, button.remove-btn-icon { width: 100%; margin-top: 5px;} }
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="page">
+    <h1>Organizational Dashboard</h1>
+    
+    <main class="dashboard-panel">
+        <div class="welcome-header">
+            <h2>Upload Documents</h2>
+            <p style="font-size:14px;">User: <span id="userTicker" style="color:#f6851b; font-weight:bold;">Loading...</span></p>
+        </div>
+        <div class="upload-grid">
+            <div class="upload-box">
+                <label>Financial Statement</label>
+                <div class="input-row"><input type="text" id="financialLink" placeholder="Google Drive Link"><button class="action-btn" onclick="uploadDocument('Financial Statement', 'financialLink')">Upload</button></div>
+            </div>
+            <div class="upload-box">
+                <label>Acknowledgement Certificate</label>
+                <div class="input-row"><input type="text" id="ackLink" placeholder="Google Drive Link"><button class="action-btn" onclick="uploadDocument('Acknowledgement', 'ackLink')">Upload</button></div>
+            </div>
+            <div class="upload-box">
+                <label>Organizational Flow</label>
+                <div class="input-row"><input type="text" id="flowLink" placeholder="Google Drive Link"><button class="action-btn" onclick="uploadDocument('Org Flow', 'flowLink')">Upload</button></div>
+            </div>
+            <div class="upload-box">
+                <label>Executive List</label>
+                <div class="input-row"><input type="text" id="execLink" placeholder="Google Drive Link"><button class="action-btn" onclick="uploadDocument('Executives', 'execLink')">Upload</button></div>
+            </div>
+        </div>
+    </main>
+
+    <main class="dashboard-panel">
+        <div class="welcome-header">
+            <h2>Network Status</h2>
+            <div>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Org</th>
+                        <th>Wallet</th>
+                        <th>Status</th>
+                        <th id="adminActionHeader" style="display:none;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="orgTableBody">
+                    <tr><td colspan="4">Loading Network...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<script>
+    const ADMIN_WALLET = "0x3f8d66e0414a309ce9079260B2d771cb238686F3"; // Your Admin Wallet
+
+    window.onload = async function() {
+        // 1. Get the stored ticker (e.g., "CSG")
+        let displayTicker = localStorage.getItem("ADMIN_TICKER");
+        if (!displayTicker) { window.location.href = "Login.html"; return; } 
+        
+        let currentUser = "";
+        
+        if (window.ethereum) {
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const accounts = await provider.listAccounts();
+            if (accounts.length > 0) {
+                currentUser = accounts[0].toLowerCase();
+                
+                // ✅ NEW LOGIC: Override name if Admin Wallet
+                if (currentUser === ADMIN_WALLET.toLowerCase()) {
+                    displayTicker = "SYSTEM ADMIN"; 
+                    
+                    // Show Admin columns
+                    document.getElementById("adminActionHeader").style.display = "table-cell";
+                }
+            }
+        }
+        
+        // 2. Set the User Name text
+        const userLabel = document.getElementById("userTicker");
+        userLabel.innerText = displayTicker;
+
+        // 3. Style "SYSTEM ADMIN" to look special (Red & Glowing)
+        if (displayTicker === "SYSTEM ADMIN") {
+            userLabel.style.color = "#ff4444";
+            userLabel.style.textShadow = "0 0 8px rgba(255,0,0,0.4)";
+        }
+
+        await renderTable(currentUser);
+    };
+
+    async function renderTable(currentUser) {
+        const tbody = document.getElementById("orgTableBody"); tbody.innerHTML = ""; 
+        
+        if (!window.ethereum) return;
+        
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+
+        try {
+            const tickers = await contract.getAllTickers();
+
+            if (tickers.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='4'>No organizations registered yet.</td></tr>";
+                return;
+            }
+
+            for (let ticker of tickers) {
+                const details = await contract.getOrgDetails(ticker);
+                const wallet = details[2];
+                const isVerified = details[7]; 
+                const shortWallet = wallet.substring(0,6) + "..." + wallet.substring(wallet.length-4);
+
+                // Status Badge logic
+                let statusBadge = isVerified 
+                    ? `<span style='color:#4ade80; font-weight:bold; border:1px solid #4ade80; padding:2px 6px; border-radius:4px;'>Verified</span>` 
+                    : `<span style='color:#facc15; font-weight:bold; border:1px solid #facc15; padding:2px 6px; border-radius:4px;'>Pending</span>`;
+
+                // Action Button logic
+                let actionHtml = "";
+                if (currentUser === ADMIN_WALLET.toLowerCase()) {
+                    if (!isVerified) {
+                        actionHtml = `<button onclick="approveOrganization('${ticker}')" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; transition:0.2s;">Approve</button>`;
+                    } else {
+                        actionHtml = `<span style="color:#555; font-size:12px;">Authorized</span>`;
+                    }
+                }
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>
+                            <strong>${ticker}</strong><br>
+                            <span style="font-size:11px; color:#aaa;">${details[1]}</span>
+                        </td>
+                        <td><span style='font-family:monospace; background:rgba(0,0,0,0.3); padding:4px; border-radius:4px;'>${shortWallet}</span></td>
+                        <td>${statusBadge}</td>
+                        ${currentUser === ADMIN_WALLET.toLowerCase() ? `<td>${actionHtml}</td>` : ''}
+                    </tr>
+                `;
+            }
+
+        } catch (e) {
+            console.error(e);
+            tbody.innerHTML = "<tr><td colspan='4' style='color:red;'>Error loading data. Check console.</td></tr>";
+        }
+    }
+
+    function logout() { localStorage.removeItem("ADMIN_TICKER"); window.location.href = "Login.html"; }
+</script>
+</body>
+</html>
